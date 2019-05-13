@@ -4,7 +4,7 @@
   "keywords": ["mamaclub", "oauth2","sdk"],
   "type": "library",
   "homepage": "https://github.com/wangliuwei/mamaclub_php_sdk",
-  "license": "Facebook Platform",
+  "license": "MIT",
   "authors": [
     {
       "name": "Mamaclub",
