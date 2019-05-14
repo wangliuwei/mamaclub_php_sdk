@@ -1,7 +1,12 @@
 <?php
 namespace Mamaclub;
 
+use Mamaclub\Grant\AbstractGrant;
+use Mamaclub\Grant\GrantFactory;
+
 abstract class AbstractMamaclub{
+    const ACCESS_TOKEN_RESOURCE_OWNER_ID = null;
+
     public $clientId;
 
     public $clientSecret;
@@ -12,9 +17,24 @@ abstract class AbstractMamaclub{
 
     public $state;
 
-    public function __construct(){}
+    protected $grantFactory;
+
+    public function __construct(){
+        $this->setGrantFactory();
+    }
 
     abstract function getBaseAuthorizationUrl();
+
+    abstract function createAccessToken(array $response, AbstractGrant $grant);
+
+    /**
+     * Sets the grant factory instance.
+     */
+    public function setGrantFactory()
+    {
+        $this->grantFactory = new GrantFactory();
+    }
+
 
     /**
      * @return string
@@ -42,6 +62,18 @@ abstract class AbstractMamaclub{
         return ',';
     }
 
+
+    /**
+     * Builds the authorization URL's query string.
+     *
+     * @param  array $params Query parameters
+     * @return string Query string
+     */
+    protected function getAuthorizationQuery(array $params)
+    {
+        return http_build_query($params, null, '&', \PHP_QUERY_RFC3986);
+    }
+
     /**
      * Appends a query string to a URL.
      *
@@ -59,5 +91,83 @@ abstract class AbstractMamaclub{
         }
 
         return $url;
+    }
+
+    /**
+     * Checks that a provided grant is valid, or attempts to produce one if the
+     * provided grant is a string.
+     *
+     * @param  AbstractGrant|string $grant
+     * @return AbstractGrant
+     */
+    protected function verifyGrant($grant)
+    {
+        if (is_string($grant)) {
+            return $this->grantFactory->getGrant($grant);
+        }
+
+        $this->grantFactory->checkGrant($grant);
+        return $grant;
+    }
+
+    /**
+     * Prepares an parsed access token response for a grant.
+     *
+     * Custom mapping of expiration, etc should be done here. Always call the
+     * parent method when overloading this method.
+     *
+     * @param  mixed $result
+     * @return array
+     */
+    protected function prepareAccessTokenResponse(array $result)
+    {
+        if ($this->getAccessTokenResourceOwnerId() !== null) {
+            $result['resource_owner_id'] = $this->getValueByKey(
+                $result,
+                $this->getAccessTokenResourceOwnerId()
+            );
+        }
+        return $result;
+    }
+
+    /**
+     * Returns the key used in the access token response to identify the resource owner.
+     *
+     * @return string|null Resource owner identifier key
+     */
+    protected function getAccessTokenResourceOwnerId()
+    {
+        return static::ACCESS_TOKEN_RESOURCE_OWNER_ID;
+    }
+
+    /**
+     * Returns a value by key using dot notation.
+     *
+     * @param  array      $data
+     * @param  string     $key
+     * @param  mixed|null $default
+     * @return mixed
+     */
+    private function getValueByKey(array $data, $key, $default = null)
+    {
+        if (!is_string($key) || empty($key) || !count($data)) {
+            return $default;
+        }
+
+        if (strpos($key, '.') !== false) {
+            $keys = explode('.', $key);
+
+            foreach ($keys as $innerKey) {
+                if (!is_array($data) || !array_key_exists($innerKey, $data)) {
+                    return $default;
+                }
+
+                $data = $data[$innerKey];
+            }
+
+            return $data;
+        }
+
+        return array_key_exists($key, $data) ? $data[$key] : $default;
     }
 }

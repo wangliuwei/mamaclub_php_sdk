@@ -1,7 +1,10 @@
 <?php
 namespace Mamaclub;
 
-use MamaclubClient;
+use Mamaclub\MamaclubClient;
+use UnexpectedValueException;
+use Mamaclub\Grant\AbstractGrant;
+use Mamaclub\Token\AccessToken;
 class OAuth2 extends AbstractMamaclub {
 
     private $urlAuthorize = 'https://api.mamaclub.com/mmc_oauth/authorize.php';
@@ -9,6 +12,8 @@ class OAuth2 extends AbstractMamaclub {
     private $urlAccessToken = 'https://api.mamaclub.com/mmc_oauth/token.php';
 
     private $urlResourceOwnerDetails = 'http://api.mamaclub.com/mmc_oauth/resource.php';
+
+    private $client;
 
     public function __construct(array $options = [])
     {
@@ -19,6 +24,8 @@ class OAuth2 extends AbstractMamaclub {
         foreach ($configured as $key => $value) {
             $this->$key = $value;
         }
+
+        $this->client = new MamaclubClient();
 
         parent::__construct();
     }
@@ -58,8 +65,8 @@ class OAuth2 extends AbstractMamaclub {
 
     public function getAuthorizationUrl(array $options = []){
         $baseAuthorizationUrl = $this->getBaseAuthorizationUrl();
-
-        $query  = $this->getAuthorizationParameters($options);
+        $params = $this->getAuthorizationParameters($options);
+        $query  = $this->getAuthorizationQuery($params);
 
         return $this->appendQuery($baseAuthorizationUrl, $query);
     }
@@ -102,5 +109,52 @@ class OAuth2 extends AbstractMamaclub {
         $options['client_id'] = $this->clientId;
 
         return $options;
+    }
+
+    /**
+     * Requests an access token using a specified grant and option set.
+     *
+     * @param  mixed $grant
+     * @param  array $options
+     * @throws UnexpectedValueException
+     * @return AccessToken
+     */
+    public function getAccessToken($grant, array $options = [])
+    {
+        $grant = $this->verifyGrant($grant);
+
+        $params = [
+            'client_id'     => $this->clientId,
+            'client_secret' => $this->clientSecret,
+            'redirect_uri'  => $this->redirectUri,
+        ];
+
+        $params   = $grant->prepareRequestParameters($params, $options);
+        $request  = $this->client->getAccessTokenRequest($params);
+        $response = $this->client->getParsedResponse($request);
+        if (false === is_array($response)) {
+            throw new UnexpectedValueException(
+                'Invalid response received from Authorization Server. Expected JSON.'
+            );
+        }
+        $prepared = $this->prepareAccessTokenResponse($response);
+        $token    = $this->createAccessToken($prepared, $grant);
+
+        return $token;
+    }
+
+    /**
+     * Creates an access token from a response.
+     *
+     * The grant that was used to fetch the response can be used to provide
+     * additional context.
+     *
+     * @param  array $response
+     * @param  AbstractGrant $grant
+     * @return AccessToken
+     */
+    public function createAccessToken(array $response, AbstractGrant $grant)
+    {
+        return new AccessToken($response);
     }
 }
