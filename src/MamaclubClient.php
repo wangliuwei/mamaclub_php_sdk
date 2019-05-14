@@ -6,13 +6,15 @@ use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\BadResponseException;
 class MamaclubClient {
-    const UrlAuthorize = 'https://api.mamaclub.com/mmc_oauth/authorize.php';
+    private $urlAuthorize = 'https://api.mamaclub.com/mmc_oauth/authorize.php';
 
     private $urlAccessToken = 'https://api.mamaclub.com/mmc_oauth/token.php';
 
-    const UrlResourceOwnerDetails = 'http://api.mamaclub.com/mmc_oauth/resource.php';
+    private $urlResourceOwnerDetails = 'http://api.mamaclub.com/mmc_oauth/resource.php';
 
     const METHOD_POST = 'POST';
+
+    const METHOD_GET = 'GET';
 
     private $http_client;
 
@@ -32,11 +34,6 @@ class MamaclubClient {
         $this->http_client = new HttpClient();
     }
 
-    public static function getBaseAuthorizationUrl(){
-
-        return self::UrlAuthorize;
-    }
-
     /**
      * Returns the method to use when requesting an access token.
      *
@@ -45,6 +42,20 @@ class MamaclubClient {
     public static function getAccessTokenMethod()
     {
         return self::METHOD_POST;
+    }
+
+    /**
+     * @return string
+     */
+    public function getUrlAuthorize(){
+        return $this->urlAuthorize;
+    }
+
+    /**
+     * @return string
+     */
+    public function getUrlResourceOwnerDetails(){
+        return $this->urlResourceOwnerDetails;
     }
 
     /**
@@ -70,7 +81,7 @@ class MamaclubClient {
      */
     protected function getAuthorizationHeaders($token = null)
     {
-        return [];
+        return ['Authorization' => 'Bearer ' . $token];
     }
 
     /**
@@ -86,7 +97,7 @@ class MamaclubClient {
         if ($token) {
             return array_merge(
                 $this->getDefaultHeaders(),
-                $this->getAuthorizationHeaders($token)
+                $this->getAuthorizationHeaders()
             );
         }
 
@@ -282,6 +293,20 @@ class MamaclubClient {
             }
             throw new \Exception($error, $code);
         }
+    }
+
+    /**
+     * Returns an authenticated PSR-7 request instance.
+     *
+     * @param  string $method
+     * @param  string $url
+     * @param  string $token
+     * @param  array $options Any of "headers", "body", and "protocolVersion".
+     * @return Request
+     */
+    public function getAuthenticatedRequest($method, $url, $token, array $options = [])
+    {
+        return $this->createRequest($method, $url, $token, $options);
     }
 
 }

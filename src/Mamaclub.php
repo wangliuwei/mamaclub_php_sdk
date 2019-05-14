@@ -6,13 +6,6 @@ use UnexpectedValueException;
 use Mamaclub\Grant\AbstractGrant;
 use Mamaclub\Token\AccessToken;
 class OAuth2 extends AbstractMamaclub {
-
-    private $urlAuthorize = 'https://api.mamaclub.com/mmc_oauth/authorize.php';
-
-    private $urlAccessToken = 'https://api.mamaclub.com/mmc_oauth/token.php';
-
-    private $urlResourceOwnerDetails = 'http://api.mamaclub.com/mmc_oauth/resource.php';
-
     private $client;
 
     public function __construct(array $options = [])
@@ -64,15 +57,11 @@ class OAuth2 extends AbstractMamaclub {
 
 
     public function getAuthorizationUrl(array $options = []){
-        $baseAuthorizationUrl = $this->getBaseAuthorizationUrl();
+        $baseAuthorizationUrl = $this->client->getUrlAuthorize();
         $params = $this->getAuthorizationParameters($options);
         $query  = $this->getAuthorizationQuery($params);
 
         return $this->appendQuery($baseAuthorizationUrl, $query);
-    }
-
-    public function getBaseAuthorizationUrl(){
-        return $this->urlAuthorize;
     }
 
     /**
@@ -156,5 +145,53 @@ class OAuth2 extends AbstractMamaclub {
     public function createAccessToken(array $response, AbstractGrant $grant)
     {
         return new AccessToken($response);
+    }
+
+    /**
+     * Requests and returns the resource owner of given access token.
+     *
+     * @param  AccessToken $token
+     * @return Response
+     */
+    public function getResourceOwner(AccessToken $token)
+    {
+        $response = $this->fetchResourceOwnerDetails($token);
+
+        return $response;
+//        return $this->createResourceOwner($response, $token);
+    }
+
+    /**
+     * Requests resource owner details.
+     *
+     * @param  AccessToken $token
+     * @return mixed
+     */
+    protected function fetchResourceOwnerDetails(AccessToken $token)
+    {
+        $url = $this->client->getUrlResourceOwnerDetails();
+
+        $request = $this->client->getAuthenticatedRequest(MamaclubClient::METHOD_GET, $url, $token);
+
+        $response = $this->client->getParsedResponse($request);
+
+        if (false === is_array($response)) {
+            throw new UnexpectedValueException(
+                'Invalid response received from Authorization Server. Expected JSON.'
+            );
+        }
+
+        return $response;
+    }
+
+    /**
+     * Returns authorization headers for the 'bearer' grant.
+     *
+     * @param  string|null $token Either a string or an access token instance
+     * @return array
+     */
+    protected function getAuthorizationHeaders($token = null)
+    {
+        return ['Authorization' => 'Bearer ' . $token];
     }
 }

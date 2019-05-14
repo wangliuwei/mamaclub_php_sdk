@@ -23,8 +23,6 @@ abstract class AbstractMamaclub{
         $this->setGrantFactory();
     }
 
-    abstract function getBaseAuthorizationUrl();
-
     abstract function createAccessToken(array $response, AbstractGrant $grant);
 
     /**
