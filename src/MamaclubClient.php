@@ -16,6 +16,17 @@ class MamaclubClient {
 
     private $http_client;
 
+    /**
+     * @var string
+     */
+    private $responseError = 'error';
+
+    /**
+     * @var string
+     */
+    private $responseCode;
+
+
     public function __construct()
     {
         $this->http_client = new HttpClient();
@@ -92,8 +103,8 @@ class MamaclubClient {
     {
         $method  = $this->getAccessTokenMethod();
         $url     = $this->getAccessTokenUrl($params);
-
-        return $this->getRequest($method, $url);
+        $options = $this->getAccessTokenOptions($method, $params);
+        return $this->getRequest($method, $url, $options);
     }
 
     /**
@@ -107,6 +118,20 @@ class MamaclubClient {
         $url = $this->urlAccessToken;
 
         return $url;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getAccessTokenOptions($method, array $params)
+    {
+        $options = ['headers' => ['content-type' => 'application/x-www-form-urlencoded']];
+
+        if ($method === self::METHOD_POST) {
+            $options['body'] = http_build_query($params, null, '&', \PHP_QUERY_RFC3986);
+        }
+
+        return $options;
     }
 
     /**
@@ -146,7 +171,7 @@ class MamaclubClient {
      * @param Request $request
      */
     public function getResponse(Request $request){
-        $this->http_client->send($request);
+        return $this->http_client->send($request);
     }
 
     /**
@@ -165,8 +190,7 @@ class MamaclubClient {
         }
 
         $parsed = $this->parseResponse($response);
-
-//        $this->checkResponse($response, $parsed);
+        $this->checkResponse($parsed);
 
         return $parsed;
     }
@@ -245,7 +269,7 @@ class MamaclubClient {
     /**
      * @inheritdoc
      */
-    protected function checkResponse(Response $response, $data)
+    protected function checkResponse($data)
     {
         if (!empty($data[$this->responseError])) {
             $error = $data[$this->responseError];
@@ -256,7 +280,7 @@ class MamaclubClient {
             if (!is_int($code)) {
                 $code = intval($code);
             }
-            throw new IdentityProviderException($error, $code, $data);
+            throw new \Exception($error, $code);
         }
     }
 
