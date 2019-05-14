@@ -4,6 +4,12 @@ namespace Mamaclub;
 use MamaclubClient;
 class OAuth2 extends AbstractMamaclub {
 
+    private $urlAuthorize = 'https://api.mamaclub.com/mmc_oauth/authorize.php';
+
+    private $urlAccessToken = 'https://api.mamaclub.com/mmc_oauth/token.php';
+
+    private $urlResourceOwnerDetails = 'http://api.mamaclub.com/mmc_oauth/resource.php';
+
     public function __construct(array $options = [])
     {
         $this->assertRequiredOptions($options);
@@ -36,7 +42,7 @@ class OAuth2 extends AbstractMamaclub {
      *
      * @param  array $options
      * @return void
-     * @throws InvalidArgumentException
+     * @throws \InvalidArgumentException
      */
     private function assertRequiredOptions(array $options)
     {
@@ -59,7 +65,7 @@ class OAuth2 extends AbstractMamaclub {
     }
 
     public function getBaseAuthorizationUrl(){
-        return MamaclubClient::getBaseAuthorizationUrl();
+        return $this->urlAuthorize;
     }
 
     /**
