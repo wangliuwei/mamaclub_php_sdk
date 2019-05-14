@@ -1,6 +1,6 @@
 {
-  "name": "mamaclub/php-sdk",
-  "description": "Mamaclub SDK for PHP",
+  "name": "mamaclub/oauth2",
+  "description": "Mamaclub OAuth2 SDK for PHP",
   "keywords": ["mamaclub", "oauth2","sdk"],
   "type": "library",
   "homepage": "https://github.com/wangliuwei/mamaclub_php_sdk",
