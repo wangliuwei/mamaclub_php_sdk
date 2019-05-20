@@ -32,7 +32,7 @@ The following versions of PHP are supported.
 The Facebook PHP SDK can be installed with [Composer](https://getcomposer.org/). Run this command:
 
 ```sh
-composer require mamaclub/graph-sdk
+composer require mamaclub/oauth2
 ```
 
 
