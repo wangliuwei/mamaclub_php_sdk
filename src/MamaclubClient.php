@@ -5,6 +5,7 @@ use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\BadResponseException;
+use Mamaclub\Exception\Exception;
 class MamaclubClient {
     private $urlAuthorize = 'https://api.mamaclub.com/mmc_oauth/authorize.php';
 
@@ -29,6 +30,9 @@ class MamaclubClient {
     private $responseCode;
 
 
+    /**
+     * MamaclubClient constructor.
+     */
     public function __construct()
     {
         $this->http_client = new HttpClient();
@@ -97,7 +101,7 @@ class MamaclubClient {
         if ($token) {
             return array_merge(
                 $this->getDefaultHeaders(),
-                $this->getAuthorizationHeaders()
+                $this->getAuthorizationHeaders($token)
             );
         }
 
@@ -132,7 +136,9 @@ class MamaclubClient {
     }
 
     /**
-     * @inheritdoc
+     * @param $method
+     * @param array $params
+     * @return array
      */
     public function getAccessTokenOptions($method, array $params)
     {
@@ -173,13 +179,32 @@ class MamaclubClient {
             'headers' => $this->getHeaders($token),
         ];
 
+        if (empty($options['body']))
+            $options['body'] = null;
+
         $options = array_merge_recursive($defaults, $options);
 
         return new Request($method, $url, $options['headers'], $options['body']);
     }
 
+
+    /**
+     * Returns an authenticated PSR-7 request instance.
+     *
+     * @param  string $method
+     * @param  string $url
+     * @param  string $token
+     * @param  array $options Any of "headers", "body", and "protocolVersion".
+     * @return Request
+     */
+    public function getAuthenticatedRequest($method, $url, $token, array $options = [])
+    {
+        return $this->createRequest($method, $url, $token, $options);
+    }
+
     /**
      * @param Request $request
+     * @return mixed|\Psr\Http\Message\ResponseInterface
      */
     public function getResponse(Request $request){
         return $this->http_client->send($request);
@@ -278,7 +303,8 @@ class MamaclubClient {
     }
 
     /**
-     * @inheritdoc
+     * @param $data
+     * @throws Exception
      */
     protected function checkResponse($data)
     {
@@ -291,22 +317,8 @@ class MamaclubClient {
             if (!is_int($code)) {
                 $code = intval($code);
             }
-            throw new \Exception($error, $code);
+            throw new Exception($error, $code);
         }
-    }
-
-    /**
-     * Returns an authenticated PSR-7 request instance.
-     *
-     * @param  string $method
-     * @param  string $url
-     * @param  string $token
-     * @param  array $options Any of "headers", "body", and "protocolVersion".
-     * @return Request
-     */
-    public function getAuthenticatedRequest($method, $url, $token, array $options = [])
-    {
-        return $this->createRequest($method, $url, $token, $options);
     }
 
 }

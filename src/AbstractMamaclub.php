@@ -3,36 +3,54 @@ namespace Mamaclub;
 
 use Mamaclub\Grant\AbstractGrant;
 use Mamaclub\Grant\GrantFactory;
-
+use Mamaclub\Token\AccessToken;
+use Mamaclub\Tool\MamaclubTrait;
 abstract class AbstractMamaclub{
+    use MamaclubTrait;
+
+    //resource id
     const ACCESS_TOKEN_RESOURCE_OWNER_ID = null;
 
+    /**
+     * @var
+     */
     public $clientId;
 
+    /**
+     * @var
+     */
     public $clientSecret;
 
+    /**
+     * @var
+     */
     public $redirectUri;
 
+    /**
+     * @var
+     */
     public $scopes;
 
+    /**
+     * @var
+     */
     public $state;
 
+    /**
+     * @var GrantFactory
+     */
     protected $grantFactory;
 
-    public function __construct(){
-        $this->setGrantFactory();
-    }
-
-    abstract function createAccessToken(array $response, AbstractGrant $grant);
-
     /**
-     * Sets the grant factory instance.
+     * AbstractMamaclub constructor.
      */
-    public function setGrantFactory()
-    {
+    public function __construct(){
         $this->grantFactory = new GrantFactory();
     }
 
+    abstract function getAuthorizationUrl(array $options = []);
+
+    abstract function getAccessToken($grant, array $options = []);
 
     /**
      * @return string
@@ -62,33 +80,46 @@ abstract class AbstractMamaclub{
 
 
     /**
-     * Builds the authorization URL's query string.
+     * Returns the key used in the access token response to identify the resource owner.
      *
-     * @param  array $params Query parameters
-     * @return string Query string
+     * @return string|null Resource owner identifier key
      */
-    protected function getAuthorizationQuery(array $params)
+    protected function getAccessTokenResourceOwnerId()
     {
-        return http_build_query($params, null, '&', \PHP_QUERY_RFC3986);
+        return static::ACCESS_TOKEN_RESOURCE_OWNER_ID;
+    }
+
+
+    /**
+     * Returns all options that are required.
+     *
+     * @return array
+     */
+    protected function getRequiredOptions()
+    {
+        return [
+            'clientId',
+            'clientSecret',
+            'redirectUri',
+        ];
     }
 
     /**
-     * Appends a query string to a URL.
+     * Verifies that all required options have been passed.
      *
-     * @param  string $url The URL to append the query to
-     * @param  string $query The HTTP query string
-     * @return string The resulting URL
+     * @param  array $options
+     * @return void
+     * @throws \InvalidArgumentException
      */
-    protected function appendQuery($url, $query)
+    protected function assertRequiredOptions(array $options)
     {
-        $query = trim($query, '?&');
+        $missing = array_diff_key(array_flip($this->getRequiredOptions()), $options);
 
-        if ($query) {
-            $glue = strstr($url, '?') === false ? '?' : '&';
-            return $url . $glue . $query;
+        if (!empty($missing)) {
+            throw new \InvalidArgumentException(
+                'Required options not defined: ' . implode(', ', array_keys($missing))
+            );
         }
-
-        return $url;
     }
 
     /**
@@ -106,6 +137,22 @@ abstract class AbstractMamaclub{
 
         $this->grantFactory->checkGrant($grant);
         return $grant;
+    }
+
+
+    /**
+     * Creates an access token from a response.
+     *
+     * The grant that was used to fetch the response can be used to provide
+     * additional context.
+     *
+     * @param  array $response
+     * @param  AbstractGrant $grant
+     * @return AccessToken
+     */
+    protected function createAccessToken(array $response, AbstractGrant $grant)
+    {
+        return new AccessToken($response);
     }
 
     /**
@@ -129,43 +176,38 @@ abstract class AbstractMamaclub{
     }
 
     /**
-     * Returns the key used in the access token response to identify the resource owner.
+     * Returns authorization parameters based on provided options.
      *
-     * @return string|null Resource owner identifier key
+     * @param  array $options
+     * @return array Authorization parameters
      */
-    protected function getAccessTokenResourceOwnerId()
+    protected function getAuthorizationParameters(array $options)
     {
-        return static::ACCESS_TOKEN_RESOURCE_OWNER_ID;
-    }
-
-    /**
-     * Returns a value by key using dot notation.
-     *
-     * @param  array      $data
-     * @param  string     $key
-     * @param  mixed|null $default
-     * @return mixed
-     */
-    private function getValueByKey(array $data, $key, $default = null)
-    {
-        if (!is_string($key) || empty($key) || !count($data)) {
-            return $default;
+        if (empty($options['scope'])) {
+            $options['scope'] = $this->getDefaultScopes();
         }
 
-        if (strpos($key, '.') !== false) {
-            $keys = explode('.', $key);
-
-            foreach ($keys as $innerKey) {
-                if (!is_array($data) || !array_key_exists($innerKey, $data)) {
-                    return $default;
-                }
-
-                $data = $data[$innerKey];
-            }
-
-            return $data;
+        if (is_array($options['scope'])) {
+            $separator = $this->getScopeSeparator();
+            $options['scope'] = implode($separator, $options['scope']);
         }
 
-        return array_key_exists($key, $data) ? $data[$key] : $default;
+        $options += [
+            'response_type'   => 'code',
+            'approval_prompt' => 'auto'
+        ];
+
+        // Store the state as it may need to be accessed later on.
+        $this->state = $options['state'];
+
+        // Business code layer might set a different redirect_uri parameter
+        // depending on the context, leave it as-is
+        if (!isset($options['redirectUri'])) {
+            $options['redirect_uri'] = $this->redirectUri;
+        }
+
+        $options['client_id'] = $this->clientId;
+
+        return $options;
     }
 }
