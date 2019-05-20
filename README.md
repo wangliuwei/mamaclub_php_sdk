@@ -94,10 +94,6 @@ if (!isset($_GET['code'])) {
 
 ### Refreshing a Token
 
-Once your application is authorized, you can refresh an expired token using a refresh token rather than going through the entire process of obtaining a brand new token. To do so, simply reuse this refresh token from your data store to request a refresh.
-
-_This example uses [Brent Shaffer's](https://github.com/bshaffer) demo OAuth 2.0 application named **Lock'd In**. See authorization code example above, for more details._
-
 ```php
 $newAccessToken = $mamaclub->getAccessToken('refresh_token', [
     'refresh_token' => $accessToken->getRefreshToken()
